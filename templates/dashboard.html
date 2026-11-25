@@ -1,0 +1,184 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Investor Intelligence | Financial reports</title>
+    <link rel="stylesheet" href="/static/report-dashboard.css">
+    <script src="/static/dashboard.js" defer></script>
+</head>
+<body>
+<svg class="icon-library" width="0" height="0" aria-hidden="true" xmlns="http://www.w3.org/2000/svg">
+    <symbol id="icon-ledger" viewBox="0 0 24 24"><rect x="4" y="3" width="16" height="18" rx="2"/><path d="M8 3v18m4-12h4m-4 4h4m-4 4h2"/></symbol>
+    <symbol id="icon-upload" viewBox="0 0 24 24"><path d="M12 16V4m-4 4 4-4 4 4M4 16v3a1 1 0 0 0 1 1h14a1 1 0 0 0 1-1v-3"/></symbol>
+    <symbol id="icon-table" viewBox="0 0 24 24"><rect x="3" y="5" width="18" height="14" rx="2"/><path d="M3 10h18M3 14h18M9 10v9"/></symbol>
+    <symbol id="icon-insights" viewBox="0 0 24 24"><path d="M4 4v16h16M8 15l4-5 4 2 4-6"/></symbol>
+    <symbol id="icon-chat" viewBox="0 0 24 24"><path d="M20 15a2 2 0 0 1-2 2h-7l-5 4v-4H5a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h13a2 2 0 0 1 2 2zM7 9h9m-9 4h5"/></symbol>
+    <symbol id="icon-close" viewBox="0 0 24 24"><path d="m6 6 12 12M18 6 6 18"/></symbol>
+    <symbol id="icon-file" viewBox="0 0 24 24"><path d="M14 3H6a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V9zm0 0v6h6M8 13h8m-8 4h6"/></symbol>
+</svg>
+
+{% set fields = [
+    ('revenue', 'Revenue'), ('net_income', 'Net income'),
+    ('operating_income', 'Operating income'), ('cash_flow', 'Operating cash flow'),
+    ('total_assets', 'Total assets'), ('total_liabilities', 'Total liabilities')
+] %}
+
+<div class="workspace" id="workspace">
+    <aside class="sidebar" aria-label="Report workspace">
+        <a class="brand" href="#main">
+            <span class="brand-mark"><svg class="icon" width="18" height="18" aria-hidden="true"><use href="#icon-ledger"/></svg></span>
+            <span>Investor<br>Intelligence</span>
+        </a>
+
+        <div class="upload" id="dropzone">
+            <button type="button" class="button primary upload-button" id="uploadButton">
+                <svg class="icon" width="18" height="18" aria-hidden="true"><use href="#icon-upload"/></svg> Upload report
+            </button>
+            <input type="file" id="fileInput" accept=".pdf,application/pdf" hidden>
+            <p>Drop a PDF or browse files</p>
+            <div class="upload-status" id="uploadStatus" hidden>
+                <p id="progressStatus" role="status"></p>
+                <progress id="uploadProgress" max="100" aria-label="Report upload"></progress>
+            </div>
+        </div>
+
+        <nav class="section-nav" aria-label="Dashboard sections">
+            <a href="#financials"><svg class="icon" width="18" height="18" aria-hidden="true"><use href="#icon-table"/></svg> Financial comparison</a>
+            {% if metrics %}
+            <a href="#insights"><svg class="icon" width="18" height="18" aria-hidden="true"><use href="#icon-insights"/></svg> Report insights</a>
+            {% endif %}
+            <button type="button" id="openChat" aria-controls="chatPanel" aria-expanded="false">
+                <svg class="icon" width="18" height="18" aria-hidden="true"><use href="#icon-chat"/></svg> Report chat
+            </button>
+        </nav>
+
+        <dl class="coverage">
+            <div><dt>Companies</dt><dd>{{ metrics | map(attribute='company') | unique(case_sensitive=true) | list | length }}</dd></div>
+            <div><dt>Reports analyzed</dt><dd>{{ total_reports }}</dd></div>
+        </dl>
+    </aside>
+
+    <main id="main" class="main-content">
+        <header class="page-header">
+            <h1>Financial reports</h1>
+            <p>Compare company financials and review the risks and growth drivers in each report.</p>
+        </header>
+
+        <section id="financials" class="dashboard-section" aria-labelledby="financialsTitle">
+            <div class="section-heading">
+                <h2 id="financialsTitle">Financial comparison</h2>
+                {% if metrics %}
+                <span class="section-meta">Amounts as reported</span>
+                {% endif %}
+            </div>
+            {% if metrics %}
+            <div class="table-scroll" role="region" aria-labelledby="financialsTitle" tabindex="0">
+                <table class="financial-table">
+                    <thead>
+                        <tr>
+                            <th scope="col">Company / fiscal year</th>
+                            {% for key, label in fields %}<th scope="col">{{ label }}</th>{% endfor %}
+                        </tr>
+                    </thead>
+                    <tbody>
+                    {% for row in metrics %}
+                        <tr>
+                            <th scope="row">
+                                <button type="button" class="report-link" data-report-index="{{ loop.index0 }}" aria-pressed="false">
+                                    <span>{{ row.company }}</span>
+                                    <small>{{ row.year if row.year is not none else 'Year unavailable' }}</small>
+                                </button>
+                            </th>
+                            {% for key, label in fields %}
+                            <td>{% if row[key] is defined and row[key] is not none and row[key] != '' %}{{ row[key] }}{% else %}<span class="missing" aria-label="Not reported">—</span>{% endif %}</td>
+                            {% endfor %}
+                        </tr>
+                    {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+            {% else %}
+            <div class="empty-state">
+                <div class="empty-mark"><svg class="icon" width="18" height="18" aria-hidden="true"><use href="#icon-file"/></svg></div>
+                <h3>No reports yet</h3>
+                <p>Upload a company financial report as a PDF to compare figures and explore report insights.</p>
+                <button type="button" class="button secondary" id="emptyUpload">Choose a PDF</button>
+            </div>
+            {% endif %}
+        </section>
+
+        {% if metrics %}
+        <section id="insights" class="dashboard-section" aria-labelledby="insightsTitle">
+            <div class="section-heading"><h2 id="insightsTitle">Report insights</h2></div>
+            <div class="insights-card">
+                <div class="insights-header">
+                    <div>
+                        <h3 id="inspectorCompanyName">{{ metrics[0].company }}</h3>
+                        <p id="inspectorYear"></p>
+                    </div>
+                    <div class="field">
+                        <label for="companySelect">Report</label>
+                        <select id="companySelect">
+                            {% for row in metrics %}
+                            <option value="{{ loop.index0 }}">{{ row.company }} · {{ row.year if row.year is not none else 'Year unavailable' }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                </div>
+                <div class="insights-grid">
+                    <div><h4>Growth drivers</h4><ul class="insights-list" id="growthDriversList"></ul></div>
+                    <div><h4>Risk factors</h4><ul class="insights-list" id="riskFactorsList"></ul></div>
+                </div>
+            </div>
+        </section>
+        {% endif %}
+    </main>
+
+    <aside class="chat-panel" id="chatPanel" aria-labelledby="chatTitle" hidden>
+        <header class="chat-header">
+            <svg class="icon" width="18" height="18" aria-hidden="true"><use href="#icon-chat"/></svg>
+            <h2 id="chatTitle">Report chat</h2>
+            <button type="button" class="icon-button" id="closeChat" aria-label="Close report chat">
+                <svg class="icon" width="18" height="18" aria-hidden="true"><use href="#icon-close"/></svg>
+            </button>
+        </header>
+        <div class="chat-messages" id="chatMessages" role="log" aria-label="Conversation" tabindex="0">
+            <p class="chat-intro">{% if metrics %}Ask a question across all reports, or select a company and fiscal year to focus your answer.{% else %}Upload a financial report to give your questions report context.{% endif %}</p>
+        </div>
+        <form class="chat-form" id="chatForm">
+            <div class="field">
+                <label for="chatCompanySelect">Report context</label>
+                <select id="chatCompanySelect">
+                    <option value="">All reports</option>
+                    {% for row in metrics %}
+                    {% if row.company and row.year %}
+                    <option value="{{ loop.index0 }}">{{ row.company }} · {{ row.year }}</option>
+                    {% endif %}
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="field">
+                <label for="chatInput">Question</label>
+                <input type="text" id="chatInput" placeholder="What drove revenue growth?" autocomplete="off" required>
+            </div>
+            <button type="submit" class="button secondary" id="sendBtn">Send question</button>
+        </form>
+    </aside>
+</div>
+<div id="toastContainer" class="toast-container" aria-live="polite"></div>
+
+<script id="reportData" type="application/json">
+[
+    {% for row in metrics %}
+    {
+        "company": {{ row.company | tojson }},
+        "year": {{ row.year | tojson }},
+        "growthDrivers": {{ (row.growth_drivers or '').splitlines() | tojson }},
+        "riskFactors": {{ (row.risk_factors or '').splitlines() | tojson }}
+    }{{ ',' if not loop.last else '' }}
+    {% endfor %}
+]
+</script>
+</body>
+</html>
